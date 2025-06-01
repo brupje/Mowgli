@@ -590,12 +590,12 @@ extern "C" void broadcast_handler()
 		om_mower_status_msg.stamp = nh.now();
 		om_mower_status_msg.mower_status = mower_msgs::Status::MOWER_STATUS_OK;
 		om_mower_status_msg.rain_detected = RAIN_Sense();
-		om_mower_status_msg.emergency = Emergency_State();
-		om_mower_status_msg.v_charge = chargerInputVoltage;
-		om_mower_status_msg.charge_current = current;
-		om_mower_status_msg.v_battery = battery_voltage;
-		om_mower_status_msg.left_esc_status.current = left_power;
-		om_mower_status_msg.right_esc_status.current = right_power;
+		/*om_mower_status_msg.emergency = Emergency_State();
+		//om_mower_status_msg.v_charge = chargerInputVoltage;
+		//om_mower_status_msg.charge_current = current;
+		//om_mower_status_msg.v_battery = battery_voltage;
+		//om_mower_status_msg.left_esc_status.current = left_power;
+		//om_mower_status_msg.right_esc_status.current = right_power;
 		om_mower_status_msg.mow_esc_status.temperature_motor = blade_temperature;
 		om_mower_status_msg.mow_esc_status.tacho =
 		om_mower_status_msg.mow_esc_status.rpm = BLADEMOTOR_u16RPM;
@@ -603,7 +603,7 @@ extern "C" void broadcast_handler()
 		om_mower_status_msg.mow_esc_status.temperature_pcb = BLADEMOTOR_u32Error;
 		om_mower_status_msg.mow_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_OK;
 		om_mower_status_msg.left_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_OK;
-		om_mower_status_msg.right_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_OK;
+		om_mower_status_msg.right_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_OK;*/
 		om_mower_status_msg.mow_enabled = target_blade_on_off;
 		pubOMStatus.publish(&om_mower_status_msg);
 
