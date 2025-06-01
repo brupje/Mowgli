@@ -16,8 +16,7 @@
 #include <string.h>
 #include <stdbool.h>
 
-#include "stm32f1xx_hal.h"
-#include "stm32f1xx_hal_uart.h"
+#include "stm32f_board_hal.h"
 
 #include "main.h"
 #include "board.h"
@@ -47,8 +46,8 @@ typedef enum {
 *******************************************************************************/
 UART_HandleTypeDef BLADEMOTOR_USART_Handler; // UART  Handle
 
-DMA_HandleTypeDef hdma_uart3_rx;
-DMA_HandleTypeDef hdma_uart3_tx;
+DMA_HandleTypeDef hdma_uart_blade_rx;
+DMA_HandleTypeDef hdma_uart_blade_tx;
 
 static BLADEMOTOR_STATE_e blademotor_eState = BLADEMOTOR_INIT_1;
 
@@ -60,6 +59,7 @@ uint32_t BLADEMOTOR_u32Error = 0;
 static uint8_t blademotor_pu8ReceivedData[BLADEMOTOR_LENGTH_RECEIVED_MSG] = {0};
 static uint8_t blademotor_pu8RqstMessage[BLADEMOTOR_LENGTH_RQST_MSG]  = {0x55, 0xaa, 0x03, 0x20, 0x80, 0x00, 0xA2};
 static uint8_t blademotor_u8OnOff = 0;
+static uint8_t blademotor_u8Direction = 0;   /* 0 = forward, 1 = reverse */
 
 const uint8_t blademotor_pcu8Preamble[5]  = {0x55,0xAA,0x0A,0x2,0xD0};
 const uint8_t blademotor_pcu8InitMsg[BLADEMOTOR_LENGTH_INIT_MSG] =  { 0x55, 0xaa, 0x12, 0x20, 0x80, 0x00, 0xac, 0x0d, 0x00, 0x02, 0x32, 0x50, 0x1e, 0x04, 0x00, 0x15, 0x21, 0x05, 0x0a, 0x19, 0x3c, 0xaa };
@@ -75,8 +75,16 @@ void blademotor_prepareMsg(void)
 {    
     if (blademotor_u8OnOff)
     {
-        blademotor_pu8RqstMessage[5] = 0x80; /* change speed Motor */
-        blademotor_pu8RqstMessage[6] = 0x22; /* change CRC */
+        if (blademotor_u8Direction)
+        {
+            blademotor_pu8RqstMessage[5] = 0xC0; /* on, reverse (unverified opcode) */
+            blademotor_pu8RqstMessage[6] = 0x62; /* CRC = additive sum of bytes[0..5] */
+        }
+        else
+        {
+            blademotor_pu8RqstMessage[5] = 0x80; /* on, forward */
+            blademotor_pu8RqstMessage[6] = 0x22; /* change CRC */
+        }
     }
     else
     {
@@ -104,11 +112,18 @@ void BLADEMOTOR_Init(void)
 
     // enable port and usart clocks
     BLADEMOTOR_USART_GPIO_CLK_ENABLE();
-    BLADEMOTOR_USART_USART_CLK_ENABLE();
+
+	// Initiale USART3 for STM32f1 and USART6 for STM32f4
+#if BOARD_YARDFORCE500_VARIANT_ORIG
+	__HAL_RCC_USART3_CLK_ENABLE();
+#elif BOARD_YARDFORCE500_VARIANT_B
+	__HAL_RCC_USART6_CLK_ENABLE();
+#endif
     
+#if BOARD_YARDFORCE500_VARIANT_ORIG
     // RX
     GPIO_InitStruct.Pin = BLADEMOTOR_USART_RX_PIN;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_INPUT;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
     HAL_GPIO_Init(BLADEMOTOR_USART_RX_PORT, &GPIO_InitStruct);
@@ -116,10 +131,31 @@ void BLADEMOTOR_Init(void)
     // TX
     GPIO_InitStruct.Pin = BLADEMOTOR_USART_TX_PIN;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
-    HAL_GPIO_Init(BLADEMOTOR_USART_TX_PORT, &GPIO_InitStruct);    
+    HAL_GPIO_Init(BLADEMOTOR_USART_TX_PORT, &GPIO_InitStruct);
 
-    BLADEMOTOR_USART_Handler.Instance = BLADEMOTOR_USART_INSTANCE;// USART3
+    // Alternate Pin Set ?
+    __HAL_AFIO_REMAP_USART2_ENABLE();
+#elif BOARD_YARDFORCE500_VARIANT_B
+    // RX
+    GPIO_InitStruct.Pin = BLADEMOTOR_USART_TX_PIN | BLADEMOTOR_USART_RX_PIN;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF8_USART6;
+    HAL_GPIO_Init(BLADEMOTOR_USART_RX_PORT, &GPIO_InitStruct);
+
+    // RX TX
+    GPIO_InitStruct.Pin = BLADEMOTOR_USART_TX_PIN | BLADEMOTOR_USART_RX_PIN;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF8_USART6;
+    HAL_GPIO_Init(BLADEMOTOR_USART_TX_PORT, &GPIO_InitStruct);
+#endif
+
+    BLADEMOTOR_USART_Handler.Instance = BLADEMOTOR_USART_INSTANCE;
     BLADEMOTOR_USART_Handler.Init.BaudRate = 115200;               // Baud rate
     BLADEMOTOR_USART_Handler.Init.WordLength = UART_WORDLENGTH_8B; // The word is  8  Bit format
     BLADEMOTOR_USART_Handler.Init.StopBits = USART_STOPBITS_1;     // A stop bit
@@ -132,42 +168,60 @@ void BLADEMOTOR_Init(void)
     DB_TRACE(" * Blade Motor UART initialized\r\n");
 
     /* UART4 DMA Init */
-    /* UART4_RX Init */    
-    hdma_uart3_rx.Instance = DMA1_Channel3;
-    hdma_uart3_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
-    hdma_uart3_rx.Init.PeriphInc = DMA_PINC_DISABLE;
-    hdma_uart3_rx.Init.MemInc = DMA_MINC_ENABLE;
-    hdma_uart3_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-    hdma_uart3_rx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-    hdma_uart3_rx.Init.Mode = DMA_NORMAL;
-    hdma_uart3_rx.Init.Priority = DMA_PRIORITY_LOW;
-    if (HAL_DMA_Init(&hdma_uart3_rx) != HAL_OK)
+    /* UART4_RX Init */
+#if BOARD_YARDFORCE500_VARIANT_ORIG
+	hdma_uart_blade_rx.Instance = DMA1_Channel3;
+#elif BOARD_YARDFORCE500_VARIANT_B
+	hdma_uart_blade_rx.Instance = DMA2_Stream1;
+	hdma_uart_blade_rx.Init.Channel = DMA_CHANNEL_5;
+	hdma_uart_blade_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+#endif
+	hdma_uart_blade_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
+	hdma_uart_blade_rx.Init.PeriphInc = DMA_PINC_DISABLE;
+	hdma_uart_blade_rx.Init.MemInc = DMA_MINC_ENABLE;
+	hdma_uart_blade_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+	hdma_uart_blade_rx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+	hdma_uart_blade_rx.Init.Mode = DMA_NORMAL;
+	hdma_uart_blade_rx.Init.Priority = DMA_PRIORITY_LOW;
+    if (HAL_DMA_Init(&hdma_uart_blade_rx) != HAL_OK)
     {
       Error_Handler();
     }
 
-    __HAL_LINKDMA(&BLADEMOTOR_USART_Handler,hdmarx,hdma_uart3_rx);
+    __HAL_LINKDMA(&BLADEMOTOR_USART_Handler, hdmarx, hdma_uart_blade_rx);
     
     /* UART4 DMA Init */
     /* UART4_TX Init */
-    hdma_uart3_tx.Instance = DMA1_Channel2;
-    hdma_uart3_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
-    hdma_uart3_tx.Init.PeriphInc = DMA_PINC_DISABLE;
-    hdma_uart3_tx.Init.MemInc = DMA_MINC_ENABLE;
-    hdma_uart3_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-    hdma_uart3_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-    hdma_uart3_tx.Init.Mode = DMA_NORMAL;
-    hdma_uart3_tx.Init.Priority = DMA_PRIORITY_HIGH;
-    if (HAL_DMA_Init(&hdma_uart3_tx) != HAL_OK)
+#if BOARD_YARDFORCE500_VARIANT_ORIG
+	hdma_uart_blade_tx.Instance = DMA1_Channel2;
+#elif BOARD_YARDFORCE500_VARIANT_B
+	hdma_uart_blade_tx.Instance = DMA2_Stream6;
+	hdma_uart_blade_tx.Init.Channel = DMA_CHANNEL_5;
+	hdma_uart_blade_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+#endif
+	hdma_uart_blade_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
+	hdma_uart_blade_tx.Init.PeriphInc = DMA_PINC_DISABLE;
+	hdma_uart_blade_tx.Init.MemInc = DMA_MINC_ENABLE;
+	hdma_uart_blade_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+	hdma_uart_blade_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+	hdma_uart_blade_tx.Init.Mode = DMA_NORMAL;
+	hdma_uart_blade_tx.Init.Priority = DMA_PRIORITY_HIGH;
+    if (HAL_DMA_Init(&hdma_uart_blade_tx) != HAL_OK)
     {
       Error_Handler();
     }
 
-    __HAL_LINKDMA(&BLADEMOTOR_USART_Handler,hdmatx,hdma_uart3_tx);
+    __HAL_LINKDMA(&BLADEMOTOR_USART_Handler, hdmatx, hdma_uart_blade_tx);
     
     // enable IRQ
-    HAL_NVIC_SetPriority(USART3_IRQn, 0, 0);
-	HAL_NVIC_EnableIRQ(USART3_IRQn);     
+#if BOARD_YARDFORCE500_VARIANT_ORIG
+	IRQn_Type usart_irq = USART3_IRQn;
+#elif BOARD_YARDFORCE500_VARIANT_B
+	IRQn_Type usart_irq = USART6_IRQn;
+#endif
+
+    HAL_NVIC_SetPriority(usart_irq, 0, 0);
+	HAL_NVIC_EnableIRQ(usart_irq);
     __HAL_UART_ENABLE_IT(&BLADEMOTOR_USART_Handler, UART_IT_TC);
 
     blademotor_eState = BLADEMOTOR_INIT_1;    
@@ -207,23 +261,13 @@ void  BLADEMOTOR_App(void){
 /// @brief control blade motor (there is no speed control for this motor)
 /// @param on_off 1 to turn on, 0 to turn off
 void BLADEMOTOR_Set(uint8_t on_off, uint8_t direction)
-{       
+{
+    /* Just latch the requested state here. The actual request bytes (incl.
+     * direction) are written by blademotor_prepareMsg() right before each
+     * transmit in BLADEMOTOR_App() - if we set them here they would be
+     * overwritten by prepareMsg() on the very next cycle. */
     blademotor_u8OnOff = on_off;
-    if (on_off)
-    {
-        /*if (direction) {
-            blademotor_pu8RqstMessage[5] = 0xC0;
-            blademotor_pu8RqstMessage[6] = 0xE2;
-        } else {*/
-            blademotor_pu8RqstMessage[5] = 0x80; /* change speed Motor */
-            blademotor_pu8RqstMessage[6] = 0x22; /* change CRC */
-        //}
-    }
-    else
-    {
-        blademotor_pu8RqstMessage[5] = 0x00; /* change speed Motor */
-        blademotor_pu8RqstMessage[6] = 0xa2; /* change CRC */
-    }
+    blademotor_u8Direction = direction;
 }
 
 /// @brief drive motor receive interrupt handler

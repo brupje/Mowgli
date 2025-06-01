@@ -1,42 +1,53 @@
-#ifndef _ROS_mower_msgs_Status_h
-#define _ROS_mower_msgs_Status_h
+#ifndef _ROS_mower_msgs_Power_h
+#define _ROS_mower_msgs_Power_h
 
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
 #include "ros/msg.h"
 #include "ros/time.h"
-#include "mower_msgs/ESCStatus.h"
 
 namespace mower_msgs
 {
 
-  class Status : public ros::Msg
+  class Power : public ros::Msg
   {
     public:
       typedef ros::Time _stamp_type;
       _stamp_type stamp;
-      typedef float _v_charge_type;
-      _v_charge_type v_charge;
-      typedef float _v_battery_type;
-      _v_battery_type v_battery;
+      typedef float _charge_voltage_type;
+      _charge_voltage_type charge_voltage;
+      typedef float _charge_voltage_adc_type;
+      _charge_voltage_adc_type charge_voltage_adc;
       typedef float _charge_current_type;
       _charge_current_type charge_current;
+      typedef float _battery_voltage_type;
+      _battery_voltage_type battery_voltage;
+      typedef float _battery_voltage_adc_type;
+      _battery_voltage_adc_type battery_voltage_adc;
+      typedef float _battery_pct_type;
+      _battery_pct_type battery_pct;
+      typedef float _dcdc_input_current_type;
+      _dcdc_input_current_type dcdc_input_current;
+      typedef float _charger_input_current_type;
+      _charger_input_current_type charger_input_current;
       typedef bool _charger_enabled_type;
       _charger_enabled_type charger_enabled;
       typedef const char* _charger_status_type;
       _charger_status_type charger_status;
-     
-      enum { MOWER_STATUS_INITIALIZING = 0 };
-      enum { MOWER_STATUS_OK = 255 };
 
-    Status():
+    Power():
       stamp(),
-      v_charge(0),
-      v_battery(0),
+      charge_voltage(0),
+      charge_voltage_adc(0),
       charge_current(0),
+      battery_voltage(0),
+      battery_voltage_adc(0),
+      battery_pct(0),
+      dcdc_input_current(0),
+      charger_input_current(0),
       charger_enabled(0),
-      charger_status()
+      charger_status("")
     {
     }
 
@@ -53,96 +64,26 @@ namespace mower_msgs
       *(outbuffer + offset + 2) = (this->stamp.nsec >> (8 * 2)) & 0xFF;
       *(outbuffer + offset + 3) = (this->stamp.nsec >> (8 * 3)) & 0xFF;
       offset += sizeof(this->stamp.nsec);
-      *(outbuffer + offset + 0) = (this->mower_status >> (8 * 0)) & 0xFF;
-      offset += sizeof(this->mower_status);
-      union {
-        bool real;
-        uint8_t base;
-      } u_raspberry_pi_power;
-      u_raspberry_pi_power.real = this->raspberry_pi_power;
-      *(outbuffer + offset + 0) = (u_raspberry_pi_power.base >> (8 * 0)) & 0xFF;
-      offset += sizeof(this->raspberry_pi_power);
-      union {
-        bool real;
-        uint8_t base;
-      } u_gps_power;
-      u_gps_power.real = this->gps_power;
-      *(outbuffer + offset + 0) = (u_gps_power.base >> (8 * 0)) & 0xFF;
-      offset += sizeof(this->gps_power);
-      union {
-        bool real;
-        uint8_t base;
-      } u_esc_power;
-      u_esc_power.real = this->esc_power;
-      *(outbuffer + offset + 0) = (u_esc_power.base >> (8 * 0)) & 0xFF;
-      offset += sizeof(this->esc_power);
-      union {
-        bool real;
-        uint8_t base;
-      } u_rain_detected;
-      u_rain_detected.real = this->rain_detected;
-      *(outbuffer + offset + 0) = (u_rain_detected.base >> (8 * 0)) & 0xFF;
-      offset += sizeof(this->rain_detected);
-      union {
-        bool real;
-        uint8_t base;
-      } u_sound_module_available;
-      u_sound_module_available.real = this->sound_module_available;
-      *(outbuffer + offset + 0) = (u_sound_module_available.base >> (8 * 0)) & 0xFF;
-      offset += sizeof(this->sound_module_available);
-      union {
-        bool real;
-        uint8_t base;
-      } u_sound_module_busy;
-      u_sound_module_busy.real = this->sound_module_busy;
-      *(outbuffer + offset + 0) = (u_sound_module_busy.base >> (8 * 0)) & 0xFF;
-      offset += sizeof(this->sound_module_busy);
-      union {
-        bool real;
-        uint8_t base;
-      } u_ui_board_available;
-      u_ui_board_available.real = this->ui_board_available;
-      *(outbuffer + offset + 0) = (u_ui_board_available.base >> (8 * 0)) & 0xFF;
-      offset += sizeof(this->ui_board_available);
-      for( uint32_t i = 0; i < 5; i++){
       union {
         float real;
         uint32_t base;
-      } u_ultrasonic_rangesi;
-      u_ultrasonic_rangesi.real = this->ultrasonic_ranges[i];
-      *(outbuffer + offset + 0) = (u_ultrasonic_rangesi.base >> (8 * 0)) & 0xFF;
-      *(outbuffer + offset + 1) = (u_ultrasonic_rangesi.base >> (8 * 1)) & 0xFF;
-      *(outbuffer + offset + 2) = (u_ultrasonic_rangesi.base >> (8 * 2)) & 0xFF;
-      *(outbuffer + offset + 3) = (u_ultrasonic_rangesi.base >> (8 * 3)) & 0xFF;
-      offset += sizeof(this->ultrasonic_ranges[i]);
-      }
-      union {
-        bool real;
-        uint8_t base;
-      } u_emergency;
-      u_emergency.real = this->emergency;
-      *(outbuffer + offset + 0) = (u_emergency.base >> (8 * 0)) & 0xFF;
-      offset += sizeof(this->emergency);
+      } u_charge_voltage;
+      u_charge_voltage.real = this->charge_voltage;
+      *(outbuffer + offset + 0) = (u_charge_voltage.base >> (8 * 0)) & 0xFF;
+      *(outbuffer + offset + 1) = (u_charge_voltage.base >> (8 * 1)) & 0xFF;
+      *(outbuffer + offset + 2) = (u_charge_voltage.base >> (8 * 2)) & 0xFF;
+      *(outbuffer + offset + 3) = (u_charge_voltage.base >> (8 * 3)) & 0xFF;
+      offset += sizeof(this->charge_voltage);
       union {
         float real;
         uint32_t base;
-      } u_v_charge;
-      u_v_charge.real = this->v_charge;
-      *(outbuffer + offset + 0) = (u_v_charge.base >> (8 * 0)) & 0xFF;
-      *(outbuffer + offset + 1) = (u_v_charge.base >> (8 * 1)) & 0xFF;
-      *(outbuffer + offset + 2) = (u_v_charge.base >> (8 * 2)) & 0xFF;
-      *(outbuffer + offset + 3) = (u_v_charge.base >> (8 * 3)) & 0xFF;
-      offset += sizeof(this->v_charge);
-      union {
-        float real;
-        uint32_t base;
-      } u_v_battery;
-      u_v_battery.real = this->v_battery;
-      *(outbuffer + offset + 0) = (u_v_battery.base >> (8 * 0)) & 0xFF;
-      *(outbuffer + offset + 1) = (u_v_battery.base >> (8 * 1)) & 0xFF;
-      *(outbuffer + offset + 2) = (u_v_battery.base >> (8 * 2)) & 0xFF;
-      *(outbuffer + offset + 3) = (u_v_battery.base >> (8 * 3)) & 0xFF;
-      offset += sizeof(this->v_battery);
+      } u_charge_voltage_adc;
+      u_charge_voltage_adc.real = this->charge_voltage_adc;
+      *(outbuffer + offset + 0) = (u_charge_voltage_adc.base >> (8 * 0)) & 0xFF;
+      *(outbuffer + offset + 1) = (u_charge_voltage_adc.base >> (8 * 1)) & 0xFF;
+      *(outbuffer + offset + 2) = (u_charge_voltage_adc.base >> (8 * 2)) & 0xFF;
+      *(outbuffer + offset + 3) = (u_charge_voltage_adc.base >> (8 * 3)) & 0xFF;
+      offset += sizeof(this->charge_voltage_adc);
       union {
         float real;
         uint32_t base;
@@ -154,15 +95,67 @@ namespace mower_msgs
       *(outbuffer + offset + 3) = (u_charge_current.base >> (8 * 3)) & 0xFF;
       offset += sizeof(this->charge_current);
       union {
+        float real;
+        uint32_t base;
+      } u_battery_voltage;
+      u_battery_voltage.real = this->battery_voltage;
+      *(outbuffer + offset + 0) = (u_battery_voltage.base >> (8 * 0)) & 0xFF;
+      *(outbuffer + offset + 1) = (u_battery_voltage.base >> (8 * 1)) & 0xFF;
+      *(outbuffer + offset + 2) = (u_battery_voltage.base >> (8 * 2)) & 0xFF;
+      *(outbuffer + offset + 3) = (u_battery_voltage.base >> (8 * 3)) & 0xFF;
+      offset += sizeof(this->battery_voltage);
+      union {
+        float real;
+        uint32_t base;
+      } u_battery_voltage_adc;
+      u_battery_voltage_adc.real = this->battery_voltage_adc;
+      *(outbuffer + offset + 0) = (u_battery_voltage_adc.base >> (8 * 0)) & 0xFF;
+      *(outbuffer + offset + 1) = (u_battery_voltage_adc.base >> (8 * 1)) & 0xFF;
+      *(outbuffer + offset + 2) = (u_battery_voltage_adc.base >> (8 * 2)) & 0xFF;
+      *(outbuffer + offset + 3) = (u_battery_voltage_adc.base >> (8 * 3)) & 0xFF;
+      offset += sizeof(this->battery_voltage_adc);
+      union {
+        float real;
+        uint32_t base;
+      } u_battery_pct;
+      u_battery_pct.real = this->battery_pct;
+      *(outbuffer + offset + 0) = (u_battery_pct.base >> (8 * 0)) & 0xFF;
+      *(outbuffer + offset + 1) = (u_battery_pct.base >> (8 * 1)) & 0xFF;
+      *(outbuffer + offset + 2) = (u_battery_pct.base >> (8 * 2)) & 0xFF;
+      *(outbuffer + offset + 3) = (u_battery_pct.base >> (8 * 3)) & 0xFF;
+      offset += sizeof(this->battery_pct);
+      union {
+        float real;
+        uint32_t base;
+      } u_dcdc_input_current;
+      u_dcdc_input_current.real = this->dcdc_input_current;
+      *(outbuffer + offset + 0) = (u_dcdc_input_current.base >> (8 * 0)) & 0xFF;
+      *(outbuffer + offset + 1) = (u_dcdc_input_current.base >> (8 * 1)) & 0xFF;
+      *(outbuffer + offset + 2) = (u_dcdc_input_current.base >> (8 * 2)) & 0xFF;
+      *(outbuffer + offset + 3) = (u_dcdc_input_current.base >> (8 * 3)) & 0xFF;
+      offset += sizeof(this->dcdc_input_current);
+      union {
+        float real;
+        uint32_t base;
+      } u_charger_input_current;
+      u_charger_input_current.real = this->charger_input_current;
+      *(outbuffer + offset + 0) = (u_charger_input_current.base >> (8 * 0)) & 0xFF;
+      *(outbuffer + offset + 1) = (u_charger_input_current.base >> (8 * 1)) & 0xFF;
+      *(outbuffer + offset + 2) = (u_charger_input_current.base >> (8 * 2)) & 0xFF;
+      *(outbuffer + offset + 3) = (u_charger_input_current.base >> (8 * 3)) & 0xFF;
+      offset += sizeof(this->charger_input_current);
+      union {
         bool real;
         uint8_t base;
-      } u_mow_enabled;
-      u_mow_enabled.real = this->mow_enabled;
-      *(outbuffer + offset + 0) = (u_mow_enabled.base >> (8 * 0)) & 0xFF;
-      offset += sizeof(this->mow_enabled);
-      offset += this->left_esc_status.serialize(outbuffer + offset);
-      offset += this->right_esc_status.serialize(outbuffer + offset);
-      offset += this->mow_esc_status.serialize(outbuffer + offset);
+      } u_charger_enabled;
+      u_charger_enabled.real = this->charger_enabled;
+      *(outbuffer + offset + 0) = (u_charger_enabled.base >> (8 * 0)) & 0xFF;
+      offset += sizeof(this->charger_enabled);
+      uint32_t length_charger_status = strlen(this->charger_status);
+      varToArr(outbuffer + offset, length_charger_status);
+      offset += 4;
+      memcpy(outbuffer + offset, this->charger_status, length_charger_status);
+      offset += length_charger_status;
       return offset;
     }
 
@@ -179,107 +172,28 @@ namespace mower_msgs
       this->stamp.nsec |= ((uint32_t) (*(inbuffer + offset + 2))) << (8 * 2);
       this->stamp.nsec |= ((uint32_t) (*(inbuffer + offset + 3))) << (8 * 3);
       offset += sizeof(this->stamp.nsec);
-      this->mower_status =  ((uint8_t) (*(inbuffer + offset)));
-      offset += sizeof(this->mower_status);
-      union {
-        bool real;
-        uint8_t base;
-      } u_raspberry_pi_power;
-      u_raspberry_pi_power.base = 0;
-      u_raspberry_pi_power.base |= ((uint8_t) (*(inbuffer + offset + 0))) << (8 * 0);
-      this->raspberry_pi_power = u_raspberry_pi_power.real;
-      offset += sizeof(this->raspberry_pi_power);
-      union {
-        bool real;
-        uint8_t base;
-      } u_gps_power;
-      u_gps_power.base = 0;
-      u_gps_power.base |= ((uint8_t) (*(inbuffer + offset + 0))) << (8 * 0);
-      this->gps_power = u_gps_power.real;
-      offset += sizeof(this->gps_power);
-      union {
-        bool real;
-        uint8_t base;
-      } u_esc_power;
-      u_esc_power.base = 0;
-      u_esc_power.base |= ((uint8_t) (*(inbuffer + offset + 0))) << (8 * 0);
-      this->esc_power = u_esc_power.real;
-      offset += sizeof(this->esc_power);
-      union {
-        bool real;
-        uint8_t base;
-      } u_rain_detected;
-      u_rain_detected.base = 0;
-      u_rain_detected.base |= ((uint8_t) (*(inbuffer + offset + 0))) << (8 * 0);
-      this->rain_detected = u_rain_detected.real;
-      offset += sizeof(this->rain_detected);
-      union {
-        bool real;
-        uint8_t base;
-      } u_sound_module_available;
-      u_sound_module_available.base = 0;
-      u_sound_module_available.base |= ((uint8_t) (*(inbuffer + offset + 0))) << (8 * 0);
-      this->sound_module_available = u_sound_module_available.real;
-      offset += sizeof(this->sound_module_available);
-      union {
-        bool real;
-        uint8_t base;
-      } u_sound_module_busy;
-      u_sound_module_busy.base = 0;
-      u_sound_module_busy.base |= ((uint8_t) (*(inbuffer + offset + 0))) << (8 * 0);
-      this->sound_module_busy = u_sound_module_busy.real;
-      offset += sizeof(this->sound_module_busy);
-      union {
-        bool real;
-        uint8_t base;
-      } u_ui_board_available;
-      u_ui_board_available.base = 0;
-      u_ui_board_available.base |= ((uint8_t) (*(inbuffer + offset + 0))) << (8 * 0);
-      this->ui_board_available = u_ui_board_available.real;
-      offset += sizeof(this->ui_board_available);
-      for( uint32_t i = 0; i < 5; i++){
       union {
         float real;
         uint32_t base;
-      } u_ultrasonic_rangesi;
-      u_ultrasonic_rangesi.base = 0;
-      u_ultrasonic_rangesi.base |= ((uint32_t) (*(inbuffer + offset + 0))) << (8 * 0);
-      u_ultrasonic_rangesi.base |= ((uint32_t) (*(inbuffer + offset + 1))) << (8 * 1);
-      u_ultrasonic_rangesi.base |= ((uint32_t) (*(inbuffer + offset + 2))) << (8 * 2);
-      u_ultrasonic_rangesi.base |= ((uint32_t) (*(inbuffer + offset + 3))) << (8 * 3);
-      this->ultrasonic_ranges[i] = u_ultrasonic_rangesi.real;
-      offset += sizeof(this->ultrasonic_ranges[i]);
-      }
-      union {
-        bool real;
-        uint8_t base;
-      } u_emergency;
-      u_emergency.base = 0;
-      u_emergency.base |= ((uint8_t) (*(inbuffer + offset + 0))) << (8 * 0);
-      this->emergency = u_emergency.real;
-      offset += sizeof(this->emergency);
+      } u_charge_voltage;
+      u_charge_voltage.base = 0;
+      u_charge_voltage.base |= ((uint32_t) (*(inbuffer + offset + 0))) << (8 * 0);
+      u_charge_voltage.base |= ((uint32_t) (*(inbuffer + offset + 1))) << (8 * 1);
+      u_charge_voltage.base |= ((uint32_t) (*(inbuffer + offset + 2))) << (8 * 2);
+      u_charge_voltage.base |= ((uint32_t) (*(inbuffer + offset + 3))) << (8 * 3);
+      this->charge_voltage = u_charge_voltage.real;
+      offset += sizeof(this->charge_voltage);
       union {
         float real;
         uint32_t base;
-      } u_v_charge;
-      u_v_charge.base = 0;
-      u_v_charge.base |= ((uint32_t) (*(inbuffer + offset + 0))) << (8 * 0);
-      u_v_charge.base |= ((uint32_t) (*(inbuffer + offset + 1))) << (8 * 1);
-      u_v_charge.base |= ((uint32_t) (*(inbuffer + offset + 2))) << (8 * 2);
-      u_v_charge.base |= ((uint32_t) (*(inbuffer + offset + 3))) << (8 * 3);
-      this->v_charge = u_v_charge.real;
-      offset += sizeof(this->v_charge);
-      union {
-        float real;
-        uint32_t base;
-      } u_v_battery;
-      u_v_battery.base = 0;
-      u_v_battery.base |= ((uint32_t) (*(inbuffer + offset + 0))) << (8 * 0);
-      u_v_battery.base |= ((uint32_t) (*(inbuffer + offset + 1))) << (8 * 1);
-      u_v_battery.base |= ((uint32_t) (*(inbuffer + offset + 2))) << (8 * 2);
-      u_v_battery.base |= ((uint32_t) (*(inbuffer + offset + 3))) << (8 * 3);
-      this->v_battery = u_v_battery.real;
-      offset += sizeof(this->v_battery);
+      } u_charge_voltage_adc;
+      u_charge_voltage_adc.base = 0;
+      u_charge_voltage_adc.base |= ((uint32_t) (*(inbuffer + offset + 0))) << (8 * 0);
+      u_charge_voltage_adc.base |= ((uint32_t) (*(inbuffer + offset + 1))) << (8 * 1);
+      u_charge_voltage_adc.base |= ((uint32_t) (*(inbuffer + offset + 2))) << (8 * 2);
+      u_charge_voltage_adc.base |= ((uint32_t) (*(inbuffer + offset + 3))) << (8 * 3);
+      this->charge_voltage_adc = u_charge_voltage_adc.real;
+      offset += sizeof(this->charge_voltage_adc);
       union {
         float real;
         uint32_t base;
@@ -292,21 +206,82 @@ namespace mower_msgs
       this->charge_current = u_charge_current.real;
       offset += sizeof(this->charge_current);
       union {
+        float real;
+        uint32_t base;
+      } u_battery_voltage;
+      u_battery_voltage.base = 0;
+      u_battery_voltage.base |= ((uint32_t) (*(inbuffer + offset + 0))) << (8 * 0);
+      u_battery_voltage.base |= ((uint32_t) (*(inbuffer + offset + 1))) << (8 * 1);
+      u_battery_voltage.base |= ((uint32_t) (*(inbuffer + offset + 2))) << (8 * 2);
+      u_battery_voltage.base |= ((uint32_t) (*(inbuffer + offset + 3))) << (8 * 3);
+      this->battery_voltage = u_battery_voltage.real;
+      offset += sizeof(this->battery_voltage);
+      union {
+        float real;
+        uint32_t base;
+      } u_battery_voltage_adc;
+      u_battery_voltage_adc.base = 0;
+      u_battery_voltage_adc.base |= ((uint32_t) (*(inbuffer + offset + 0))) << (8 * 0);
+      u_battery_voltage_adc.base |= ((uint32_t) (*(inbuffer + offset + 1))) << (8 * 1);
+      u_battery_voltage_adc.base |= ((uint32_t) (*(inbuffer + offset + 2))) << (8 * 2);
+      u_battery_voltage_adc.base |= ((uint32_t) (*(inbuffer + offset + 3))) << (8 * 3);
+      this->battery_voltage_adc = u_battery_voltage_adc.real;
+      offset += sizeof(this->battery_voltage_adc);
+      union {
+        float real;
+        uint32_t base;
+      } u_battery_pct;
+      u_battery_pct.base = 0;
+      u_battery_pct.base |= ((uint32_t) (*(inbuffer + offset + 0))) << (8 * 0);
+      u_battery_pct.base |= ((uint32_t) (*(inbuffer + offset + 1))) << (8 * 1);
+      u_battery_pct.base |= ((uint32_t) (*(inbuffer + offset + 2))) << (8 * 2);
+      u_battery_pct.base |= ((uint32_t) (*(inbuffer + offset + 3))) << (8 * 3);
+      this->battery_pct = u_battery_pct.real;
+      offset += sizeof(this->battery_pct);
+      union {
+        float real;
+        uint32_t base;
+      } u_dcdc_input_current;
+      u_dcdc_input_current.base = 0;
+      u_dcdc_input_current.base |= ((uint32_t) (*(inbuffer + offset + 0))) << (8 * 0);
+      u_dcdc_input_current.base |= ((uint32_t) (*(inbuffer + offset + 1))) << (8 * 1);
+      u_dcdc_input_current.base |= ((uint32_t) (*(inbuffer + offset + 2))) << (8 * 2);
+      u_dcdc_input_current.base |= ((uint32_t) (*(inbuffer + offset + 3))) << (8 * 3);
+      this->dcdc_input_current = u_dcdc_input_current.real;
+      offset += sizeof(this->dcdc_input_current);
+      union {
+        float real;
+        uint32_t base;
+      } u_charger_input_current;
+      u_charger_input_current.base = 0;
+      u_charger_input_current.base |= ((uint32_t) (*(inbuffer + offset + 0))) << (8 * 0);
+      u_charger_input_current.base |= ((uint32_t) (*(inbuffer + offset + 1))) << (8 * 1);
+      u_charger_input_current.base |= ((uint32_t) (*(inbuffer + offset + 2))) << (8 * 2);
+      u_charger_input_current.base |= ((uint32_t) (*(inbuffer + offset + 3))) << (8 * 3);
+      this->charger_input_current = u_charger_input_current.real;
+      offset += sizeof(this->charger_input_current);
+      union {
         bool real;
         uint8_t base;
-      } u_mow_enabled;
-      u_mow_enabled.base = 0;
-      u_mow_enabled.base |= ((uint8_t) (*(inbuffer + offset + 0))) << (8 * 0);
-      this->mow_enabled = u_mow_enabled.real;
-      offset += sizeof(this->mow_enabled);
-      offset += this->left_esc_status.deserialize(inbuffer + offset);
-      offset += this->right_esc_status.deserialize(inbuffer + offset);
-      offset += this->mow_esc_status.deserialize(inbuffer + offset);
+      } u_charger_enabled;
+      u_charger_enabled.base = 0;
+      u_charger_enabled.base |= ((uint8_t) (*(inbuffer + offset + 0))) << (8 * 0);
+      this->charger_enabled = u_charger_enabled.real;
+      offset += sizeof(this->charger_enabled);
+      uint32_t length_charger_status;
+      arrToVar(length_charger_status, (inbuffer + offset));
+      offset += 4;
+      for(unsigned int k= offset; k< offset+length_charger_status; ++k){
+          inbuffer[k-1]=inbuffer[k];
+      }
+      inbuffer[offset+length_charger_status-1]=0;
+      this->charger_status = (char *)(inbuffer + offset-1);
+      offset += length_charger_status;
      return offset;
     }
 
-    virtual const char * getType() override { return "mower_msgs/Status"; };
-    virtual const char * getMD5() override { return "3878b70bc9c3008ce9c808b5392f58be"; };
+    virtual const char * getType() override { return "mower_msgs/Power"; };
+    virtual const char * getMD5() override { return "c3b7369e76c1155bd0bf167c9a6ebac0"; };
 
   };
 

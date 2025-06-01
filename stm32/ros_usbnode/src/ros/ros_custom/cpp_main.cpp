@@ -24,7 +24,7 @@
 #include "drivemotor.h"
 #include "blademotor.h"
 #include "ultrasonic_sensor.h"
-#include "stm32f1xx_hal.h"
+#include "stm32f_board_hal.h"
 #include "ringbuffer.h"
 #include "ros.h"
 #include "ros/time.h"
@@ -58,9 +58,12 @@
 
 // Status message
 #include "mowgli/status.h"
-#include "mowgli/WheelTick.h"
+#include "xbot_msgs/WheelTick.h"
 
 #include "mower_msgs/Status.h"
+#include "mower_msgs/Power.h"
+#include "mower_msgs/Emergency.h"
+#include "mower_msgs/ESCStatus.h"
 #include "mower_msgs/MowerControlSrv.h"
 #include "mower_msgs/EmergencyStopSrv.h"
 #include "mower_msgs/HighLevelControlSrv.h"
@@ -123,6 +126,13 @@ sensor_msgs::Imu imu_onboard_msg;
 mowgli::status status_msg;
 // om status message
 mower_msgs::Status om_mower_status_msg;
+// om power message
+mower_msgs::Power om_power_msg;
+// om emergency message
+mower_msgs::Emergency om_emergency_msg;
+// om ESC status messages (drive motors)
+mower_msgs::ESCStatus om_left_esc_msg;
+mower_msgs::ESCStatus om_right_esc_msg;
 
 xbot_msgs::WheelTick wheel_ticks_msg;
 mower_msgs::HighLevelStatus high_level_status;
@@ -131,14 +141,18 @@ float clamp(float d, float min, float max);
  * PUBLISHERS
  */
 ros::Publisher pubButtonState("buttonstate", &buttonstate_msg);
-ros::Publisher pubOMStatus("mower/status", &om_mower_status_msg);
-ros::Publisher pubWheelTicks("/mower/wheel_ticks", &wheel_ticks_msg);
+ros::Publisher pubOMStatus("/ll/mower_status", &om_mower_status_msg);
+ros::Publisher pubOMPower("/ll/power", &om_power_msg);
+ros::Publisher pubOMEmergency("/ll/emergency", &om_emergency_msg);
+ros::Publisher pubOMLeftEsc("/ll/diff_drive/left_esc_status", &om_left_esc_msg);
+ros::Publisher pubOMRightEsc("/ll/diff_drive/right_esc_status", &om_right_esc_msg);
+ros::Publisher pubWheelTicks("/xbot_positioning/wheel_ticks_in", &wheel_ticks_msg);
 #ifdef ROS_PUBLISH_MOWGLI
 ros::Publisher pubStatus("mowgli/status", &status_msg);
 #endif
 
 // IMU external
-ros::Publisher pubIMU("imu/data_raw", &imu_msg);
+ros::Publisher pubIMU("/ll/imu/data_raw", &imu_msg);
 
 #if OPTION_ULTRASONIC == 1
 ros::Publisher pubLeftUltrasonic("ultrasonic/left", &ultrasonic_left_msg);
@@ -155,7 +169,7 @@ ros::Publisher pubRightBumper("bumper/right", &bumper_left_msg);
  */
 extern "C" void CommandVelocityMessageCb(const geometry_msgs::Twist &msg);
 extern "C" void CommandHighLevelStatusMessageCb(const mower_msgs::HighLevelStatus &msg);
-ros::Subscriber<geometry_msgs::Twist> subCommandVelocity("cmd_vel", CommandVelocityMessageCb);
+ros::Subscriber<geometry_msgs::Twist> subCommandVelocity("/ll/cmd_vel", CommandVelocityMessageCb);
 ros::Subscriber<mower_msgs::HighLevelStatus> subCommandHighLevelStatus("mower_logic/current_state", CommandHighLevelStatusMessageCb);
 
 // SERVICES
@@ -168,8 +182,8 @@ void cbChargeCtrl(const mower_msgs::ChargeCtrlSrvRequest &req, mower_msgs::Charg
 
 // ros::ServiceServer<mowgli::SetCfgRequest, mowgli::SetCfgResponse> svcSetCfg("mowgli/SetCfg", cbSetCfg);
 // ros::ServiceServer<mowgli::GetCfgRequest, mowgli::GetCfgResponse> svcGetCfg("mowgli/GetCfg", cbGetCfg);
-ros::ServiceServer<mower_msgs::MowerControlSrvRequest, mower_msgs::MowerControlSrvResponse> svcEnableMowerMotor("mower_service/mow_enabled", cbEnableMowerMotor);
-ros::ServiceServer<mower_msgs::EmergencyStopSrvRequest, mower_msgs::EmergencyStopSrvResponse> svcSetEmergency("mower_service/emergency", cbSetEmergency);
+ros::ServiceServer<mower_msgs::MowerControlSrvRequest, mower_msgs::MowerControlSrvResponse> svcEnableMowerMotor("/ll/_service/mow_enabled", cbEnableMowerMotor);
+ros::ServiceServer<mower_msgs::EmergencyStopSrvRequest, mower_msgs::EmergencyStopSrvResponse> svcSetEmergency("/ll/_service/emergency", cbSetEmergency);
 ros::ServiceClient<mower_msgs::HighLevelControlSrvRequest, mower_msgs::HighLevelControlSrvResponse> svcHighLevelControl("mower_service/high_level_control");
 ros::ServiceServer<std_srvs::Empty::Request, std_srvs::Empty::Response> svcReboot("mowgli/Reboot", cbReboot);
 ros::ServiceServer<mower_msgs::ChargeCtrlSrvRequest, mower_msgs::ChargeCtrlSrvResponse> svcChargeCtrl("mowgli/ChargeCtrl", cbChargeCtrl);
@@ -380,7 +394,7 @@ extern "C" void motors_handler()
 	if (NBT_handler(&motors_nbt))
 	{
 		blade_on_off = target_blade_on_off;
-		if (Emergency_State())
+		if (Emergency_State() )
 		{
 			DRIVEMOTOR_SetSpeed(0, 0, 0, 0);
 			blade_on_off = 0;
@@ -399,6 +413,11 @@ extern "C" void motors_handler()
 			}
 
 			if (last_cmd_vel_age > 25) // Blade can take up to 10 seconds to switch on
+			{
+				blade_on_off = 0;
+			}
+			
+			if (Pre_Emergency_State())
 			{
 				blade_on_off = 0;
 			}
@@ -589,23 +608,47 @@ extern "C" void broadcast_handler()
 
 		om_mower_status_msg.stamp = nh.now();
 		om_mower_status_msg.mower_status = mower_msgs::Status::MOWER_STATUS_OK;
+		om_mower_status_msg.raspberry_pi_power = true;
+		om_mower_status_msg.is_charging = chargecontrol_is_charging;
+		om_mower_status_msg.esc_power = true;
+
 		om_mower_status_msg.rain_detected = RAIN_Sense();
-		/*om_mower_status_msg.emergency = Emergency_State();
-		//om_mower_status_msg.v_charge = chargerInputVoltage;
-		//om_mower_status_msg.charge_current = current;
-		//om_mower_status_msg.v_battery = battery_voltage;
-		//om_mower_status_msg.left_esc_status.current = left_power;
-		//om_mower_status_msg.right_esc_status.current = right_power;
-		om_mower_status_msg.mow_esc_status.temperature_motor = blade_temperature;
-		om_mower_status_msg.mow_esc_status.tacho =
-		om_mower_status_msg.mow_esc_status.rpm = BLADEMOTOR_u16RPM;
-		om_mower_status_msg.mow_esc_status.current = (float)BLADEMOTOR_u16Power / 1000.0;
-		om_mower_status_msg.mow_esc_status.temperature_pcb = BLADEMOTOR_u32Error;
-		om_mower_status_msg.mow_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_OK;
-		om_mower_status_msg.left_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_OK;
-		om_mower_status_msg.right_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_OK;*/
 		om_mower_status_msg.mow_enabled = target_blade_on_off;
+		om_mower_status_msg.mower_esc_status = mower_msgs::ESCStatus::ESC_STATUS_OK;
+		om_mower_status_msg.mower_esc_temperature = blade_temperature;
+		om_mower_status_msg.mower_esc_current = (float)BLADEMOTOR_u16Power / 1000.0;
+		om_mower_status_msg.mower_motor_temperature = blade_temperature;
+		om_mower_status_msg.mower_motor_rpm = BLADEMOTOR_u16RPM;
 		pubOMStatus.publish(&om_mower_status_msg);
+
+		// Publish Power message to /ll/power
+		om_power_msg.stamp = nh.now();
+		om_power_msg.battery_voltage_adc = battery_voltage;
+		om_power_msg.charge_voltage_adc = charge_voltage;
+		om_power_msg.charge_current = current;
+		om_power_msg.charger_enabled = chargecontrol_is_charging;
+		om_power_msg.charger_status = chargecontrol_is_charging ? "charging" : "idle";
+		pubOMPower.publish(&om_power_msg);
+
+		// Publish Emergency message to /ll/emergency
+		om_emergency_msg.stamp = nh.now();
+		om_emergency_msg.active_emergency = Emergency_State();
+		om_emergency_msg.latched_emergency = Emergency_State();
+		om_emergency_msg.reason = Emergency_State() ? "emergency" : "";
+		pubOMEmergency.publish(&om_emergency_msg);
+
+		// Publish ESC status for drive motors
+		om_left_esc_msg.status = mower_msgs::ESCStatus::ESC_STATUS_OK;
+		om_left_esc_msg.current = (float)left_power / 1000.0;
+		om_left_esc_msg.temperature_pcb = 0;
+		om_left_esc_msg.temperature_motor = 0;
+		pubOMLeftEsc.publish(&om_left_esc_msg);
+
+		om_right_esc_msg.status = mower_msgs::ESCStatus::ESC_STATUS_OK;
+		om_right_esc_msg.current = (float)right_power / 1000.0;
+		om_right_esc_msg.temperature_pcb = 0;
+		om_right_esc_msg.temperature_motor = 0;
+		pubOMRightEsc.publish(&om_right_esc_msg);
 
 	}
 	// if (NBT_handler(&status_nbt))
@@ -716,6 +759,10 @@ extern "C" void init_ROS()
 	nh.advertise(pubStatus);
 #endif
 	nh.advertise(pubOMStatus);
+	nh.advertise(pubOMPower);
+	nh.advertise(pubOMEmergency);
+	nh.advertise(pubOMLeftEsc);
+	nh.advertise(pubOMRightEsc);
 	nh.advertise(pubWheelTicks);
 
 	// Initialize Subscribers

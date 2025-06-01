@@ -15,9 +15,9 @@
 #include <stdbool.h>
 #include <math.h>
 #include <string.h>
-#include "stm32f1xx_hal.h"
-#include "stm32f1xx_hal_uart.h"
-#include "stm32f1xx_hal_adc.h"
+
+#include "stm32f_board_hal.h"
+
 // stm32 custom
 #include "board.h"
 #include "main.h"
@@ -30,6 +30,7 @@
 
 static bool emergency_checking_disabled = false;
 static uint8_t emergency_state = 0;
+static uint8_t pre_emergency_state = 0;
 static uint32_t stop_emergency_started = 0;
 static uint32_t blue_wheel_lift_emergency_started = 0;
 static uint32_t red_wheel_lift_emergency_started = 0;
@@ -46,6 +47,15 @@ static uint32_t play_button_started = 0;
 uint8_t Emergency_State(void)
 {
     return(emergency_state);
+}
+
+/**
+ * @brief return Pre-Emergency State bits
+ * @retval >0 if there is an pre-emergency, 0 if all i good
+ */
+uint8_t Pre_Emergency_State(void)
+{
+    return(pre_emergency_state);
 }
 
 /**
@@ -121,6 +131,30 @@ int Emergency_LowZAccelerometer(void)
    return(I2C_TestZLowINT());
 }
 
+void check_lift_state(int condition, unsigned long *start_time, unsigned long now, 
+                      unsigned long pre_millis, unsigned long emergency_millis, 
+                      int bitmask, const char* color_text) 
+{
+    if (condition) {
+        if (*start_time == 0) {
+            *start_time = now;
+        } else {
+            unsigned long elapsed = now - *start_time;
+            
+            // Check pre-emergency
+            if (elapsed >= pre_millis) {
+                pre_emergency_state |= bitmask;
+            }
+            // Check full emergency
+            if (elapsed >= emergency_millis) {
+                emergency_state |= bitmask;
+                debug_printf(" \e[01;31m## EMERGENCY ##\e[0m - WHEEL LIFT (%s) triggered\r\n", color_text);
+            }
+        }
+    } else {
+        *start_time = 0;
+    }
+}
 /*
  * Manages the emergency sensors
  */
@@ -150,6 +184,7 @@ void EmergencyController(void)
 
     if (emergency_checking_disabled) {
         emergency_state = 0;
+        pre_emergency_state = 0;
         return;
     }
 
@@ -180,48 +215,17 @@ void EmergencyController(void)
         stop_emergency_started = 0;
     }
 
-    if (wheel_lift_blue && wheel_lift_red)
-    {
-        if (both_wheels_lift_emergency_started==0)
-        {
-            both_wheels_lift_emergency_started=now;
-        }
-        else if (now-both_wheels_lift_emergency_started>=BOTH_WHEELS_LIFT_EMERGENCY_MILLIS)
-        {
-            emergency_state |= 0b11000;
-            debug_printf(" \e[01;31m## EMERGENCY ##\e[0m - WHEEL LIFT (\e[31mred\e[0m and \e[34mblue\e[0m) triggered\r\n");
-        }
-    } else {
-        both_wheels_lift_emergency_started=0;
-    }
-    if (wheel_lift_blue)
-    {
-        if (blue_wheel_lift_emergency_started==0)
-        {
-            blue_wheel_lift_emergency_started=now;
-        }
-        else if (now-blue_wheel_lift_emergency_started>=ONE_WHEEL_LIFT_EMERGENCY_MILLIS)
-        {
-            emergency_state |= 0b01000;
-            debug_printf(" \e[01;31m## EMERGENCY ##\e[0m - WHEEL LIFT (\e[34mblue\e[0m) triggered\r\n");
-        }
-    } else {
-        blue_wheel_lift_emergency_started=0;
-    }
-    if (wheel_lift_red)
-    {
-        if (red_wheel_lift_emergency_started==0)
-        {
-            red_wheel_lift_emergency_started=now;
-        }
-        else if (now-red_wheel_lift_emergency_started>=ONE_WHEEL_LIFT_EMERGENCY_MILLIS)
-        {
-            emergency_state |= 0b10000;
-            debug_printf(" \e[01;31m## EMERGENCY ##\e[0m - WHEEL LIFT (\e[31mred\e[0m) triggered\r\n");
-        }
-    } else {
-        red_wheel_lift_emergency_started=0;
-    }
+    check_lift_state(wheel_lift_blue && wheel_lift_red, &both_wheels_lift_emergency_started, now,
+                 BOTH_WHEELS_LIFT_PRE_EMERGENCY_MILLIS, BOTH_WHEELS_LIFT_EMERGENCY_MILLIS, 
+                 0b11000, "\e[31mred\e[0m and \e[34mblue\e[0m");
+
+    check_lift_state(wheel_lift_blue, &blue_wheel_lift_emergency_started, now,
+                    ONE_WHEEL_LIFT_PRE_EMERGENCY_MILLIS, ONE_WHEEL_LIFT_EMERGENCY_MILLIS, 
+                    0b01000, "\e[34mblue\e[0m");
+
+    check_lift_state(wheel_lift_red, &red_wheel_lift_emergency_started, now,
+                    ONE_WHEEL_LIFT_PRE_EMERGENCY_MILLIS, ONE_WHEEL_LIFT_EMERGENCY_MILLIS, 
+                    0b10000, "\e[31mred\e[0m");
 
     if (accelerometer_int_triggered)
     {
@@ -233,6 +237,10 @@ void EmergencyController(void)
         {
             if (now - accelerometer_int_emergency_started >= TILT_EMERGENCY_MILLIS) {
                 emergency_state |= 0b100000;
+                debug_printf(" \e[01;31m## EMERGENCY ##\e[0m - ACCELEROMETER TILT triggered\r\n");
+            }
+            else if (now - accelerometer_int_emergency_started >= TILT_PRE_EMERGENCY_MILLIS) {
+                pre_emergency_state |= 0b100000;
                 debug_printf(" \e[01;31m## EMERGENCY ##\e[0m - ACCELEROMETER TILT triggered\r\n");
             }
         }     
@@ -271,6 +279,7 @@ void EmergencyController(void)
         {
             if (now - play_button_started >= PLAY_BUTTON_CLEAR_EMERGENCY_MILLIS) {
                 emergency_state = 0;
+                pre_emergency_state = 0;
                 debug_printf(" \e[01;31m## EMERGENCY ##\e[0m - manual reset\r\n");
 				StatusLEDUpdate();
                 do_chirp=1;

@@ -18,6 +18,10 @@ namespace mower_msgs
       _state_name_type state_name;
       typedef const char* _sub_state_name_type;
       _sub_state_name_type sub_state_name;
+      typedef const char* _job_id_type;
+      _job_id_type job_id;
+      typedef const char* _session_id_type;
+      _session_id_type session_id;
       typedef int16_t _current_area_type;
       _current_area_type current_area;
       typedef int16_t _current_path_type;
@@ -46,6 +50,8 @@ namespace mower_msgs
       state(0),
       state_name(""),
       sub_state_name(""),
+      job_id(""),
+      session_id(""),
       current_area(0),
       current_path(0),
       current_path_index(0),
@@ -71,6 +77,16 @@ namespace mower_msgs
       offset += 4;
       memcpy(outbuffer + offset, this->sub_state_name, length_sub_state_name);
       offset += length_sub_state_name;
+      uint32_t length_job_id = strlen(this->job_id);
+      varToArr(outbuffer + offset, length_job_id);
+      offset += 4;
+      memcpy(outbuffer + offset, this->job_id, length_job_id);
+      offset += length_job_id;
+      uint32_t length_session_id = strlen(this->session_id);
+      varToArr(outbuffer + offset, length_session_id);
+      offset += 4;
+      memcpy(outbuffer + offset, this->session_id, length_session_id);
+      offset += length_session_id;
       union {
         int16_t real;
         uint16_t base;
@@ -155,6 +171,24 @@ namespace mower_msgs
       inbuffer[offset+length_sub_state_name-1]=0;
       this->sub_state_name = (char *)(inbuffer + offset-1);
       offset += length_sub_state_name;
+      uint32_t length_job_id;
+      arrToVar(length_job_id, (inbuffer + offset));
+      offset += 4;
+      for(unsigned int k= offset; k< offset+length_job_id; ++k){
+          inbuffer[k-1]=inbuffer[k];
+      }
+      inbuffer[offset+length_job_id-1]=0;
+      this->job_id = (char *)(inbuffer + offset-1);
+      offset += length_job_id;
+      uint32_t length_session_id;
+      arrToVar(length_session_id, (inbuffer + offset));
+      offset += 4;
+      for(unsigned int k= offset; k< offset+length_session_id; ++k){
+          inbuffer[k-1]=inbuffer[k];
+      }
+      inbuffer[offset+length_session_id-1]=0;
+      this->session_id = (char *)(inbuffer + offset-1);
+      offset += length_session_id;
       union {
         int16_t real;
         uint16_t base;
@@ -224,7 +258,7 @@ namespace mower_msgs
     }
 
     virtual const char * getType() override { return "mower_msgs/HighLevelStatus"; };
-    virtual const char * getMD5() override { return "732af7e69b02c69eb2276dbbe1ebc2aa"; };
+    virtual const char * getMD5() override { return "b51b7ca2768f0d47e39020638fd8d784"; };
 
   };
 

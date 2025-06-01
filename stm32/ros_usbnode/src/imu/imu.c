@@ -18,6 +18,7 @@
 #include "imu/lsm6.h"
 #include "imu/mpu6050.h"
 #include "imu/wt901.h"
+#include "imu/icm45686.h"
 #include "i2c.h"
 #include "main.h"
 
@@ -284,27 +285,45 @@ void IMU_Init() {
   imuReadAccelerometerRaw=NULL;
   imuReadGyroRaw=NULL;
 
-#ifndef DISABLE_LSM6
-  if (LSM6_TestDevice()) {
-    LSM6_Init();
-    imuReadAccelerometerRaw=LSM6_ReadAccelerometerRaw;
-    imuReadGyroRaw=LSM6_ReadGyroRaw;
-  }
-#endif
+  uint32_t l_u32Timestamp = HAL_GetTick();
+while (imuReadAccelerometerRaw == NULL && ((HAL_GetTick() - l_u32Timestamp) < 20000) )
+{
+  #ifndef DISABLE_LSM6
+    if (LSM6_TestDevice()) {
+      LSM6_Init();
+      imuReadAccelerometerRaw=LSM6_ReadAccelerometerRaw;
+      imuReadGyroRaw=LSM6_ReadGyroRaw;
+    }
+  #endif
 
-#ifndef DISABLE_WT901
-  if ((!imuReadGyroRaw || !imuReadAccelerometerRaw) && WT901_TestDevice()) {
-    WT901_Init();
-    imuReadAccelerometerRaw=WT901_ReadAccelerometerRaw;
-    imuReadGyroRaw=WT901_ReadGyroRaw;
-  }
-#endif
+  #ifndef DISABLE_WT901
+    if ((!imuReadGyroRaw || !imuReadAccelerometerRaw) && WT901_TestDevice()) {
+      WT901_Init();
+      imuReadAccelerometerRaw=WT901_ReadAccelerometerRaw;
+      imuReadGyroRaw=WT901_ReadGyroRaw;
+    }
+  #endif
 
-#ifndef DISABLE_MPU6050
-  if ((!imuReadGyroRaw || !imuReadAccelerometerRaw) && MPU6050_TestDevice()) {
-    MPU6050_Init();
-    imuReadAccelerometerRaw=MPU6050_ReadAccelerometerRaw;
-    imuReadGyroRaw=MPU6050_ReadGyroRaw;
+  #ifndef DISABLE_MPU6050
+    if ((!imuReadGyroRaw || !imuReadAccelerometerRaw) && MPU6050_TestDevice()) {
+      MPU6050_Init();
+      imuReadAccelerometerRaw=MPU6050_ReadAccelerometerRaw;
+      imuReadGyroRaw=MPU6050_ReadGyroRaw;
+    }
+  #endif
+
+  HAL_Delay(20);
+}
+
+if(imuReadAccelerometerRaw == NULL){
+  chirp(10);
+}
+
+#ifndef DISABLE_ICM45686
+  if ((!imuReadGyroRaw || !imuReadAccelerometerRaw) && ICM45686_TestDevice()) {
+    ICM45686_Init();
+    imuReadAccelerometerRaw=ICM45686_ReadAccelerometerRaw;
+    imuReadGyroRaw=ICM45686_ReadGyroRaw;
   }
 #endif
 

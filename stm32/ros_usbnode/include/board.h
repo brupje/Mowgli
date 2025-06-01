@@ -18,7 +18,6 @@ extern "C"
  * BOARD SELECTION
  * the specific board setting are set a the end of this file
  ********************************************************************************/
- #define BOARD_YARDFORCE500 1
 //#define BOARD_LUV1000RI 1
 
 /* definition type don't modify */
@@ -34,11 +33,39 @@ extern "C"
 #define PANEL_TYPE_YARDFORCE_500_CLASSIC 1
 #define PANEL_TYPE_YARDFORCE_LUV1000RI 2
 #define PANEL_TYPE_YARDFORCE_900_ECO 3
+#define PANEL_TYPE_YARDFORCE_500B_CLASSIC 4
 
-#if defined(BOARD_YARDFORCE500)
+#if BOARD_YARDFORCE500_VARIANT_ORIG
+///////////////////////////
+// Yardforce 500 CLASSIC //
+///////////////////////////
+#define BLADEMOTOR_USART_INSTANCE USART3
+
+#define VALID_BOARD_DEFINED 1
 #define PANEL_TYPE PANEL_TYPE_YARDFORCE_500_CLASSIC
 #define BLADEMOTOR_LENGTH_RECEIVED_MSG 16
 #define DEBUG_TYPE DEBUG_TYPE_UART
+
+#define MAX_MPS 1		  // Allow maximum speed of 1.0 m/s
+#define PWM_PER_MPS 300.0 // PWM value of 300 means 1 m/s bot speed so we divide by 4 to have correct robot speed but still progressive speed
+#define TICKS_PER_M 300.0 // Motor Encoder ticks per meter
+#define WHEEL_BASE  0.325		// The distance between the center of the wheels in meters
+
+#define OPTION_ULTRASONIC 0
+#define OPTION_BUMPER 0
+
+#define BOARD_HAS_MASTER_USART 1
+#elif BOARD_YARDFORCE500_VARIANT_B
+/////////////////////
+// Yardforce 500 B //
+/////////////////////
+
+#define BLADEMOTOR_USART_INSTANCE USART6
+
+#define VALID_BOARD_DEFINED 1
+#define PANEL_TYPE PANEL_TYPE_YARDFORCE_500B_CLASSIC
+#define BLADEMOTOR_LENGTH_RECEIVED_MSG 16
+#define DEBUG_TYPE DEBUG_TYPE_SWO
 
 #define MAX_MPS 0.5		  // Allow maximum speed of 1.0 m/s
 #define PWM_PER_MPS 300.0 // PWM value of 300 means 1 m/s bot speed so we divide by 4 to have correct robot speed but still progressive speed
@@ -47,7 +74,9 @@ extern "C"
 
 #define OPTION_ULTRASONIC 0
 #define OPTION_BUMPER 0
-#elif defined(BOARD_LUV1000RI)
+
+#define BOARD_HAS_MASTER_USART 0
+#elif defined(BOARD_LUV1000RI) // TODO: This currently can't be selected via platformio
 #define PANEL_TYPE PANEL_TYPE_YARDFORCE_LUV1000RI
 #define BLADEMOTOR_LENGTH_RECEIVED_MSG 14
 
@@ -61,19 +90,19 @@ extern "C"
 #define TICKS_PER_M 300.0 // Motor Encoder ticks per meter
 #define WHEEL_BASE 0.285   // The distance between the center of the wheels in meters
 
-#else
-
-#error "No board selection"
+#define BOARD_HAS_MASTER_USART 0
 #endif
 
 //#define I_DONT_NEED_MY_FINGERS              1      // disables EmergencyController() (no wheel lift, or tilt sensing and stopping the blade anymore)
 
 /// nominal max charge current is 1.0 Amp
-#define MAX_CHARGE_CURRENT 1.0f
-/// Max voltage allowed 29.4
-#define MAX_CHARGE_VOLTAGE 29.4f
+#define MAX_CHARGE_CURRENT 1.3f
+/// Max voltage allowed
+#define MAX_CHARGE_VOLTAGE 29.2f
+/// Voltage threshold for CC to CV transition
+#define LIMIT_VOLTAGE_150MA 28.5f
 /// Default max battery voltage allowed
-#define BAT_CHARGE_DEFAULT_CUTOFF_VOLTAGE 28.0f
+#define BAT_CHARGE_CUTOFF_VOLTAGE  29.2f
 /// We consider the battery is full when in CV mode the current below 0.1A
 #define CHARGE_END_LIMIT_CURRENT 0.08f
 // if voltage is greater than this assume we are docked
@@ -87,11 +116,14 @@ extern "C"
 #define LOW_CRI_THRESHOLD 23.5f /* near 0% SOC */
 
 // Emergency sensor timeouts
+#define ONE_WHEEL_LIFT_PRE_EMERGENCY_MILLIS 2000
+#define BOTH_WHEELS_LIFT_PRE_EMERGENCY_MILLIS 1500
+#define TILT_PRE_EMERGENCY_MILLIS 500 
 #define ONE_WHEEL_LIFT_EMERGENCY_MILLIS 10000
-#define BOTH_WHEELS_LIFT_EMERGENCY_MILLIS 1000
-#define TILT_EMERGENCY_MILLIS 500 // used for both the mechanical and accelerometer based detection
+#define BOTH_WHEELS_LIFT_EMERGENCY_MILLIS 3000
+#define TILT_EMERGENCY_MILLIS 5000 // used for both the mechanical and accelerometer based detection
 #define STOP_BUTTON_EMERGENCY_MILLIS 100
-#define PLAY_BUTTON_CLEAR_EMERGENCY_MILLIS 2000
+#define PLAY_BUTTON_CLEAR_EMERGENCY_MILLIS 1000
 #define IMU_ONBOARD_INCLINATION_THRESHOLD 0x38 // stock firmware uses 0x2C (way more allowed inclination)
 
 // Enable Emergency debugging
@@ -162,7 +194,11 @@ extern "C"
 #define WHEEL_LIFT_RED_PORT GPIOD
 
 /* Play button - (LOW when pressed) */
+#if BOARD_YARDFORCE500_VARIANT_B
+#define PLAY_BUTTON_PIN GPIO_PIN_9
+#else
 #define PLAY_BUTTON_PIN GPIO_PIN_7
+#endif
 #define PLAY_BUTTON_PORT GPIOC
 #define PLAY_BUTTON_GPIO_CLK_ENABLE() __HAL_RCC_GPIOC_CLK_ENABLE()
 
@@ -183,6 +219,7 @@ extern "C"
 #define HALLSTOP_PORT GPIOD
 #define HALLSTOP_GPIO_CLK_ENABLE() __HAL_RCC_GPIOD_CLK_ENABLE()
 
+#if BOARD_HAS_MASTER_USART
     /* either J6 or J18 can be the master USART port */
 #ifdef MASTER_J6
 /* USART1 (J6 Pin 1 (TX) Pin 2 (RX)) */
@@ -206,6 +243,7 @@ extern "C"
 #define MASTER_USART_USART_CLK_ENABLE() __HAL_RCC_UART4_CLK_ENABLE()
 #define MASTER_USART_IRQ UART4_IRQn
 #endif
+#endif
 
 #ifdef DRIVEMOTORS_USART_ENABLED
 /* drive motors PAC 5210 (USART2) */
@@ -225,9 +263,8 @@ extern "C"
 #endif
 
 #ifdef BLADEMOTOR_USART_ENABLED
+#if BOARD_YARDFORCE500_VARIANT_ORIG
 /* blade motor PAC 5223 (USART3) */
-#define BLADEMOTOR_USART_INSTANCE USART3
-
 #define BLADEMOTOR_USART_RX_PIN GPIO_PIN_11
 #define BLADEMOTOR_USART_RX_PORT GPIOB
 
@@ -236,6 +273,17 @@ extern "C"
 
 #define BLADEMOTOR_USART_GPIO_CLK_ENABLE() __HAL_RCC_GPIOB_CLK_ENABLE()
 #define BLADEMOTOR_USART_USART_CLK_ENABLE() __HAL_RCC_USART3_CLK_ENABLE()
+#elif BOARD_YARDFORCE500_VARIANT_B
+/* blade motor PAC 5223 (USART6) */
+#define BLADEMOTOR_USART_RX_PIN GPIO_PIN_7
+#define BLADEMOTOR_USART_RX_PORT GPIOC
+
+#define BLADEMOTOR_USART_TX_PIN GPIO_PIN_6
+#define BLADEMOTOR_USART_TX_PORT GPIOC
+
+#define BLADEMOTOR_USART_GPIO_CLK_ENABLE() __HAL_RCC_GPIOC_CLK_ENABLE()
+#define BLADEMOTOR_USART_USART_CLK_ENABLE() __HAL_RCC_USART6_CLK_ENABLE()
+#endif
 #endif
 
 #ifdef PANEL_USART_ENABLED
@@ -260,6 +308,10 @@ extern "C"
 #define SOFT_I2C_SDA_PORT GPIOB
 
 #define SOFT_I2C_GPIO_CLK_ENABLE() __HAL_RCC_GPIOB_CLK_ENABLE();
+#endif
+
+#if !VALID_BOARD_DEFINED
+#error "No valid board has been defined, this likely is a mismatch between this file and platformio.ini"
 #endif
 
 #ifdef __cplusplus
