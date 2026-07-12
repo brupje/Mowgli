@@ -46,7 +46,7 @@ extern "C"
 #define BLADEMOTOR_LENGTH_RECEIVED_MSG 16
 #define DEBUG_TYPE DEBUG_TYPE_UART
 
-#define MAX_MPS 0.5		  // Allow maximum speed of 1.0 m/s
+#define MAX_MPS 1		  // Allow maximum speed of 1.0 m/s
 #define PWM_PER_MPS 300.0 // PWM value of 300 means 1 m/s bot speed so we divide by 4 to have correct robot speed but still progressive speed
 #define TICKS_PER_M 300.0 // Motor Encoder ticks per meter
 #define WHEEL_BASE  0.325		// The distance between the center of the wheels in meters
@@ -96,13 +96,13 @@ extern "C"
 //#define I_DONT_NEED_MY_FINGERS              1      // disables EmergencyController() (no wheel lift, or tilt sensing and stopping the blade anymore)
 
 /// nominal max charge current is 1.0 Amp
-#define MAX_CHARGE_CURRENT 1.0f
+#define MAX_CHARGE_CURRENT 1.3f
 /// Max voltage allowed
-#define MAX_CHARGE_VOLTAGE 29.0f
+#define MAX_CHARGE_VOLTAGE 29.2f
 /// Voltage threshold for CC to CV transition
-#define LIMIT_VOLTAGE_150MA 28.0f
+#define LIMIT_VOLTAGE_150MA 28.5f
 /// Default max battery voltage allowed
-#define BAT_CHARGE_CUTOFF_VOLTAGE  28.0f
+#define BAT_CHARGE_CUTOFF_VOLTAGE  29.2f
 /// We consider the battery is full when in CV mode the current below 0.1A
 #define CHARGE_END_LIMIT_CURRENT 0.08f
 // if voltage is greater than this assume we are docked
