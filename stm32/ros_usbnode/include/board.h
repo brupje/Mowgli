@@ -116,11 +116,14 @@ extern "C"
 #define LOW_CRI_THRESHOLD 23.5f /* near 0% SOC */
 
 // Emergency sensor timeouts
+#define ONE_WHEEL_LIFT_PRE_EMERGENCY_MILLIS 2000
+#define BOTH_WHEELS_LIFT_PRE_EMERGENCY_MILLIS 1500
+#define TILT_PRE_EMERGENCY_MILLIS 500 
 #define ONE_WHEEL_LIFT_EMERGENCY_MILLIS 10000
-#define BOTH_WHEELS_LIFT_EMERGENCY_MILLIS 1000
-#define TILT_EMERGENCY_MILLIS 500 // used for both the mechanical and accelerometer based detection
+#define BOTH_WHEELS_LIFT_EMERGENCY_MILLIS 3000
+#define TILT_EMERGENCY_MILLIS 5000 // used for both the mechanical and accelerometer based detection
 #define STOP_BUTTON_EMERGENCY_MILLIS 100
-#define PLAY_BUTTON_CLEAR_EMERGENCY_MILLIS 2000
+#define PLAY_BUTTON_CLEAR_EMERGENCY_MILLIS 1000
 #define IMU_ONBOARD_INCLINATION_THRESHOLD 0x38 // stock firmware uses 0x2C (way more allowed inclination)
 
 // Enable Emergency debugging

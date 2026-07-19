@@ -394,7 +394,7 @@ extern "C" void motors_handler()
 	if (NBT_handler(&motors_nbt))
 	{
 		blade_on_off = target_blade_on_off;
-		if (Emergency_State())
+		if (Emergency_State() )
 		{
 			DRIVEMOTOR_SetSpeed(0, 0, 0, 0);
 			blade_on_off = 0;
@@ -413,6 +413,11 @@ extern "C" void motors_handler()
 			}
 
 			if (last_cmd_vel_age > 25) // Blade can take up to 10 seconds to switch on
+			{
+				blade_on_off = 0;
+			}
+			
+			if (Pre_Emergency_State())
 			{
 				blade_on_off = 0;
 			}
