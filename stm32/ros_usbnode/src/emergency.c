@@ -67,11 +67,13 @@ void  Emergency_SetState(uint8_t new_emergency_state)
     switch (new_emergency_state)  {
         case EMERGENCY_CHECKING_DISABLE:
             emergency_checking_disabled = true;
+            pre_emergency_state = 0;
             emergency_state = 0;
             break;
         case EMERGENCY_CHECKING_ENABLE:
             emergency_checking_disabled = false;
         default:
+            pre_emergency_state = 0;
             emergency_state = new_emergency_state;
     }
 }
@@ -153,6 +155,7 @@ void check_lift_state(int condition, unsigned long *start_time, unsigned long no
         }
     } else {
         *start_time = 0;
+        pre_emergency_state &= ~bitmask;
     }
 }
 /*
@@ -214,6 +217,7 @@ void EmergencyController(void)
     {
         stop_emergency_started = 0;
     }
+
 
     check_lift_state(wheel_lift_blue && wheel_lift_red, &both_wheels_lift_emergency_started, now,
                  BOTH_WHEELS_LIFT_PRE_EMERGENCY_MILLIS, BOTH_WHEELS_LIFT_EMERGENCY_MILLIS, 
